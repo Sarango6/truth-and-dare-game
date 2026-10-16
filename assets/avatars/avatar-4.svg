@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad-avatar-4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#1e293b" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#grad-avatar-4)" />
+  
+      <!-- Helmet outline -->
+      <rect x="22" y="22" width="56" height="56" rx="24" fill="#e2e8f0" stroke="#94a3b8" stroke-width="3"/>
+      <!-- Visor -->
+      <rect x="28" y="28" width="44" height="42" rx="16" fill="#0284c7"/>
+      <!-- Visor reflection -->
+      <path d="M34,34 Q50,30 64,36 Q60,46 34,42 Z" fill="#38bdf8" opacity="0.7"/>
+      <circle cx="62" cy="40" r="3" fill="#fff" opacity="0.8"/>
+      <!-- Helmet mic -->
+      <rect x="20" y="56" width="6" height="12" rx="3" fill="#64748b"/>
+      <rect x="74" y="56" width="6" height="12" rx="3" fill="#64748b"/>
+      <!-- Badge -->
+      <circle cx="50" cy="84" r="8" fill="#f43f5e"/>
+      <polygon points="50,78 52,82 56,82 53,85 54,89 50,86 46,89 47,85 44,82 48,82" fill="#fff"/>
+    
+</svg>

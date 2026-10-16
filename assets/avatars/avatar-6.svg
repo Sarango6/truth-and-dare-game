@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad-avatar-6" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4b1248" />
+      <stop offset="100%" stop-color="#f0c27b" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#grad-avatar-6)" />
+  
+      <!-- Ears -->
+      <circle cx="28" cy="30" r="11" fill="#78350f"/>
+      <circle cx="28" cy="30" r="6" fill="#fbbf24"/>
+      <circle cx="72" cy="30" r="11" fill="#78350f"/>
+      <circle cx="72" cy="30" r="6" fill="#fbbf24"/>
+      <!-- Head -->
+      <circle cx="50" cy="56" r="28" fill="#92400e"/>
+      <!-- Muzzle -->
+      <ellipse cx="50" cy="65" rx="14" ry="10" fill="#fef3c7"/>
+      <!-- Nose & Mouth -->
+      <ellipse cx="50" cy="61" rx="5" ry="3.5" fill="#1e1b4b"/>
+      <path d="M50,64.5 L50,69 M46,69 Q50,73 54,69" stroke="#1e1b4b" stroke-width="2" fill="none"/>
+      <!-- Lightning Bolt Eye Makeup -->
+      <polygon points="34,42 41,52 37,52 42,60 33,52 37,52" fill="#ef4444"/>
+      <!-- Right eye -->
+      <ellipse cx="62" cy="52" rx="4" ry="4" fill="#1e1b4b"/>
+      <circle cx="63" cy="50" r="1.5" fill="#fff"/>
+      <!-- Bandana -->
+      <path d="M22,42 Q50,48 78,42 L74,36 Q50,42 26,36 Z" fill="#dc2626"/>
+    
+</svg>

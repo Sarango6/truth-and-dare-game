@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en" data-visual-theme="midnight-neon">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <title>Truth or Dare — Local Multiplayer Party Game</title>
+  <meta name="description" content="The ultimate mobile-first, pass-and-play Truth or Dare party game on a single shared device with friends. No accounts, complete privacy, pure fun.">
+  <meta name="theme-color" content="#0a0518">
+
+  <!-- Modern typography: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Accessibility Live Region for Screen Readers -->
+  <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Fullscreen Canvas for Particle Confetti -->
+  <canvas id="confetti-canvas" aria-hidden="true"></canvas>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="assertive"></div>
+
+  <!-- Persistent Header Bar -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="brand-sparkle" aria-hidden="true">✨</span>
+      <span class="brand-name">Truth or Dare</span>
+      <span class="brand-tag">Party</span>
+    </div>
+    <div class="header-actions">
+      <button type="button" id="btn-header-mute" class="header-btn" title="Toggle Sound" aria-label="Toggle Sound">
+        🔊
+      </button>
+      <button type="button" id="btn-header-settings" class="header-btn" title="Settings" aria-label="Game Settings">
+        ⚙️
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main id="app-main" class="main-wrapper">
+
+    <!-- =========================================================================
+         SCREEN A: WELCOME
+         ========================================================================= -->
+    <section id="screen-welcome" class="app-screen active" aria-labelledby="welcome-title">
+      <div class="welcome-hero-card">
+        <div class="hero-badge">🎉 Local Multiplayer Party Game</div>
+        <h1 id="welcome-title" class="hero-title">
+          <span class="title-truth">Truth</span>
+          <span class="title-amp">or</span>
+          <span class="title-dare">Dare</span>
+        </h1>
+        <p class="hero-subtitle">
+          Pass one device around the circle for hilarious confessions, fearless stunts, and heart-racing fun with your friends!
+        </p>
+
+        <div class="welcome-actions">
+          <button type="button" id="btn-welcome-start" class="btn btn-primary btn-pulse">
+            <span class="btn-icon">🚀</span> Start New Game
+          </button>
+          <button type="button" id="btn-welcome-continue" class="btn btn-secondary" style="display: none;">
+            <span class="btn-icon">▶️</span> Continue Saved Game
+          </button>
+          <button type="button" id="btn-welcome-rules" class="btn btn-glass">
+            <span class="btn-icon">📖</span> Rules & How to Play
+          </button>
+        </div>
+
+        <div class="welcome-meta-chips">
+          <span class="chip">👥 2 to 20 Players</span>
+          <span class="chip">📱 1 Shared Phone</span>
+          <span class="chip">🔒 Secret Submissions</span>
+          <span class="chip">❤️ 3 Lives Each</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCREEN B: SETUP
+         ========================================================================= -->
+    <section id="screen-setup" class="app-screen" aria-labelledby="setup-title" aria-hidden="true">
+      <div class="screen-card">
+        <div class="screen-header-row">
+          <button type="button" id="btn-setup-back" class="btn-back" aria-label="Back to welcome screen">
+            ← Home
+          </button>
+          <h1 id="setup-title" class="screen-title">Game Setup</h1>
+          <span id="setup-player-count" class="badge-counter">0 / 20 Players</span>
+        </div>
+
+        <!-- Optional Group Name -->
+        <div class="form-group">
+          <label for="input-group-name" class="form-label">
+            Party / Squad Name <span class="label-optional">(optional)</span>
+          </label>
+          <input type="text" id="input-group-name" class="form-input" placeholder="e.g. Late Night Legends" maxlength="30" value="The Party Squad">
+        </div>
+
+        <!-- Add Player Form -->
+        <div class="player-creator-box">
+          <h2 class="creator-title">Add Player</h2>
+          <div class="creator-input-row">
+            <input type="text" id="input-player-name" class="form-input" placeholder="Enter player's name..." maxlength="25" autocomplete="off">
+            <button type="button" id="btn-add-player" class="btn btn-primary btn-add">
+              + Add
+            </button>
+          </div>
+
+          <div class="avatar-select-section">
+            <span class="avatar-select-label">Choose Avatar:</span>
+            <div id="setup-avatar-grid" class="avatar-grid" role="radiogroup" aria-label="Select Player Avatar"></div>
+          </div>
+        </div>
+
+        <!-- Live Player Roster -->
+        <div class="player-roster-section">
+          <div class="roster-header">
+            <h2 class="roster-title">Players Roster</h2>
+            <button type="button" id="btn-manage-sacrifices" class="btn-link">
+              ⚙️ Customize Sacrifices
+            </button>
+          </div>
+          <div id="setup-player-list" class="player-list-grid"></div>
+        </div>
+
+        <!-- Setup Continue Action -->
+        <div class="screen-footer-actions">
+          <button type="button" id="setup-continue-btn" class="btn btn-primary btn-lg" disabled>
+            Continue to Themes →
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCREEN C: THEME SELECTION
+         ========================================================================= -->
+    <section id="screen-theme" class="app-screen" aria-labelledby="theme-title" aria-hidden="true">
+      <div class="screen-card">
+        <div class="screen-header-row">
+          <button type="button" id="btn-theme-back" class="btn-back" aria-label="Back to setup">
+            ← Players
+          </button>
+          <h1 id="theme-title" class="screen-title">Choose Theme</h1>
+          <span class="badge-tag">Game Vibe</span>
+        </div>
+
+        <p class="screen-intro">
+          Select a party theme. This will guide your question prompts and mood throughout the game.
+        </p>
+
+        <!-- Theme Grid -->
+        <div id="theme-grid" class="theme-cards-grid" role="radiogroup" aria-label="Party Themes"></div>
+
+        <!-- Custom Theme Input (Shown when 'custom' selected) -->
+        <div id="custom-theme-input-wrap" class="custom-theme-wrap" style="display: none;">
+          <label for="input-custom-theme-name" class="form-label">Name Your Custom Theme:</label>
+          <input type="text" id="input-custom-theme-name" class="form-input" placeholder="e.g. Office Party After Dark" maxlength="35">
+        </div>
+
+        <div class="screen-footer-actions">
+          <button type="button" id="btn-confirm-theme" class="btn btn-primary btn-lg">
+            Lock Theme & Write Questions →
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCREEN D: QUESTION SUBMISSION (PLAYER-BY-PLAYER FLOW)
+         ========================================================================= -->
+    <section id="screen-submissions" class="app-screen" aria-labelledby="sub-title" aria-hidden="true">
+      <div class="screen-card">
+        <!-- Progress Bar -->
+        <div class="sub-progress-header">
+          <span id="sub-progress-text" class="sub-progress-count">Player 1 of N</span>
+          <div class="progress-bar-track">
+            <div id="sub-progress-bar" class="progress-bar-fill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Step 1: Privacy Curtain -->
+        <div id="sub-privacy-curtain" class="privacy-curtain-card">
+          <div class="curtain-icon">🔒</div>
+          <h1 id="sub-title" class="curtain-title">Secret Submissions</h1>
+          <p class="curtain-pass-text">
+            Pass the device to <strong id="curtain-player-name">Player</strong>!
+          </p>
+          <p class="curtain-hint">
+            Keep your screen hidden from others. Every player secretly contributes <strong>2 Truths</strong> and <strong>2 Dares</strong>. Once submitted, all questions are anonymized into the game deck!
+          </p>
+          <button type="button" id="btn-sub-ready" class="btn btn-primary btn-lg">
+            I'm Ready — Open Secret Form 🤫
+          </button>
+        </div>
+
+        <!-- Step 2: The Secret Form -->
+        <div id="sub-form-wrap" class="sub-form-container" style="display: none;">
+          <div id="sub-player-banner" class="sub-contributor-banner"></div>
+
+          <form id="form-questions-submission" onsubmit="return false;">
+            <!-- Truth 1 -->
+            <div class="sub-field-group">
+              <div class="field-header">
+                <label for="sub-truth-1" class="field-label">💎 Truth Question #1</label>
+                <button type="button" class="btn-inspire" data-inspire="sub-truth-1">💡 Need an idea?</button>
+              </div>
+              <textarea id="sub-truth-1" class="form-textarea" placeholder="Ask something intriguing, honest, or funny..." rows="2" maxlength="250"></textarea>
+              <div class="field-footer">
+                <span id="sub-t1-count" class="char-count">0 / 250</span>
+              </div>
+            </div>
+
+            <!-- Truth 2 -->
+            <div class="sub-field-group">
+              <div class="field-header">
+                <label for="sub-truth-2" class="field-label">💎 Truth Question #2</label>
+                <button type="button" class="btn-inspire" data-inspire="sub-truth-2">💡 Need an idea?</button>
+              </div>
+              <textarea id="sub-truth-2" class="form-textarea" placeholder="Another truth question for anyone in the group..." rows="2" maxlength="250"></textarea>
+              <div class="field-footer">
+                <span id="sub-t2-count" class="char-count">0 / 250</span>
+              </div>
+            </div>
+
+            <!-- Dare 1 -->
+            <div class="sub-field-group">
+              <div class="field-header">
+                <label for="sub-dare-1" class="field-label">🔥 Dare Challenge #1</label>
+                <button type="button" class="btn-inspire" data-inspire="sub-dare-1">💡 Need an idea?</button>
+              </div>
+              <textarea id="sub-dare-1" class="form-textarea" placeholder="A fun, safe, or silly challenge to perform..." rows="2" maxlength="250"></textarea>
+              <div class="field-footer">
+                <span id="sub-d1-count" class="char-count">0 / 250</span>
+              </div>
+            </div>
+
+            <!-- Dare 2 -->
+            <div class="sub-field-group">
+              <div class="field-header">
+                <label for="sub-dare-2" class="field-label">🔥 Dare Challenge #2</label>
+                <button type="button" class="btn-inspire" data-inspire="sub-dare-2">💡 Need an idea?</button>
+              </div>
+              <textarea id="sub-dare-2" class="form-textarea" placeholder="Another exciting challenge for the room..." rows="2" maxlength="250"></textarea>
+              <div class="field-footer">
+                <span id="sub-d2-count" class="char-count">0 / 250</span>
+              </div>
+            </div>
+
+            <div class="privacy-guarantee-note">
+              🛡️ <strong>Privacy Protection:</strong> Your name will NEVER appear on question cards during gameplay. All cards are shuffled anonymously.
+            </div>
+
+            <button type="submit" id="btn-submit-questions" class="btn btn-primary btn-lg btn-block">
+              Confirm & Pass to Next Player →
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCREEN E: GAME LOBBY & SUMMARY
+         ========================================================================= -->
+    <section id="screen-lobby" class="app-screen" aria-labelledby="lobby-title" aria-hidden="true">
+      <div class="screen-card">
+        <div class="lobby-header">
+          <div class="lobby-meta-pill">🎉 Ready to Roll</div>
+          <h1 id="lobby-title" class="screen-title">Party Lobby</h1>
+          <h2 id="lobby-group-name" class="lobby-group-title">The Party Squad</h2>
+          <span id="lobby-theme-badge" class="badge-theme">Theme: Funny</span>
+        </div>
+
+        <div class="lobby-stats-grid">
+          <div class="stat-box">
+            <span class="stat-icon">👥</span>
+            <strong id="lobby-player-count" class="stat-value">0 Players</strong>
+            <span class="stat-sub">Each has 3 Lives</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-icon">🃏</span>
+            <strong id="lobby-question-count" class="stat-value">0 Challenges</strong>
+            <span class="stat-sub">Shuffled in Deck</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-icon">💎</span>
+            <strong id="lobby-truths-count" class="stat-value">0 Truths</strong>
+            <span class="stat-sub">Secretly Crafted</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-icon">🔥</span>
+            <strong id="lobby-dares-count" class="stat-value">0 Dares</strong>
+            <span class="stat-sub">Ready to Unleash</span>
+          </div>
+        </div>
+
+        <div class="lobby-roster-wrap">
+          <h3 class="roster-section-heading">Player Roster</h3>
+          <div id="lobby-roster-grid" class="lobby-roster-grid"></div>
+        </div>
+
+        <div class="screen-footer-actions">
+          <button type="button" id="btn-lobby-start-game" class="btn btn-primary btn-lg btn-pulse">
+            🎲 Start Game (Round 1) →
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCREEN F: MAIN GAMEPLAY SCREEN
+         ========================================================================= -->
+    <section id="screen-playing" class="app-screen" aria-labelledby="game-round-badge" aria-hidden="true">
+      <!-- Game Top Info Bar -->
+      <div class="game-top-bar">
+        <span id="game-round-badge" class="game-badge-round">Round 1</span>
+        <span id="game-theme-badge" class="game-badge-theme">Funny</span>
+        <span id="game-remaining-badge" class="game-badge-remaining">0 left</span>
+      </div>
+
+      <!-- Live Player Roster Pill Bar -->
+      <div id="game-roster-bar" class="game-roster-bar" aria-label="Players and Lives"></div>
+
+      <!-- Active Player Selection Banner -->
+      <div id="active-player-banner" class="active-player-banner-area">
+        <div class="ready-banner">
+          <span class="ready-icon">🎲</span>
+          <h2>Press Draw Challenge to Begin!</h2>
+        </div>
+      </div>
+
+      <!-- Challenge Preference Selector (Truth, Dare, or Random) -->
+      <div class="type-preference-bar" role="radiogroup" aria-label="Select Challenge Category">
+        <button type="button" class="type-pref-pill active" data-type="random">🎲 Surprise Me</button>
+        <button type="button" class="type-pref-pill" data-type="truth">💎 Truth</button>
+        <button type="button" class="type-pref-pill" data-type="dare">🔥 Dare</button>
+      </div>
+
+      <!-- 3D Flipping Challenge Card -->
+      <div class="card-scene">
+        <div id="challenge-card-3d" class="challenge-card-3d">
+          <!-- Card Front (Mystery Back of Card) -->
+          <div class="card-face card-face-front">
+            <div class="card-emblem">
+              <span class="emblem-sparkles">✨</span>
+              <span class="emblem-text">Truth or Dare</span>
+              <span class="emblem-sub">Mystery Challenge</span>
+            </div>
+            <p class="card-instruction">The host presses Draw Challenge when ready!</p>
+          </div>
+
+          <!-- Card Back (Revealed Challenge) -->
+          <div class="card-face card-face-back">
+            <div class="card-revealed-header">
+              <span id="card-back-type-badge" class="challenge-type-badge type-truth">💎 TRUTH</span>
+              <span class="card-anonymous-badge">🔒 Anonymous</span>
+            </div>
+            <div class="card-content-area">
+              <p id="card-back-text" class="challenge-question-text">
+                Question text will be revealed here...
+              </p>
+            </div>
+            <div class="card-footer-note">
+              Choose: Accept, Sacrifice a Life, or Safety Veto.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Draw Control (Initial State) -->
+      <div id="draw-controls-wrap" class="draw-controls-wrap">
+        <button type="button" id="btn-draw-challenge" class="btn btn-primary btn-lg btn-pulse">
+          🎲 Draw Challenge
+        </button>
+      </div>
+
+      <!-- Interactive Action Buttons (Revealed State) -->
+      <div id="card-actions-row" class="card-actions-row" style="display: none;">
+        <button type="button" id="btn-accept-challenge" class="btn btn-success">
+          ✓ Accept Challenge
+        </button>
+        <button type="button" id="btn-sacrifice-life" class="btn btn-danger">
+          💔 Sacrifice a Life
+        </button>
+        <button type="button" id="btn-safety-veto" class="btn btn-glass" title="Skip this challenge without any penalty">
+          🛡️ Safety Veto
+        </button>
+      </div>
+
+      <!-- Round Concluded Actions -->
+      <div id="next-round-row" class="next-round-row" style="display: none;">
+        <div id="round-outcome-notice" class="round-outcome-notice"></div>
+        <button type="button" id="btn-next-round" class="btn btn-primary btn-lg">
+          Next Round →
+        </button>
+      </div>
+
+      <!-- Bottom Control Bar -->
+      <div class="game-bottom-bar">
+        <button type="button" id="btn-game-history" class="btn-subtle">
+          📜 Turn History
+        </button>
+        <button type="button" id="btn-game-end" class="btn-subtle btn-subtle-danger">
+          🛑 End Game Early
+        </button>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         SCREEN H: END-GAME SUMMARY
+         ========================================================================= -->
+    <section id="screen-summary" class="app-screen" aria-labelledby="summary-title" aria-hidden="true">
+      <div class="screen-card">
+        <div class="summary-hero">
+          <span class="summary-trophy">🏆</span>
+          <h1 id="summary-title" class="screen-title">Party Recap & Awards</h1>
+          <p class="summary-subtitle">What a night! Here is how the squad performed.</p>
+        </div>
+
+        <!-- Aggregate Statistics -->
+        <div class="summary-stats-grid">
+          <div class="stat-pill">
+            <strong id="summary-total-rounds" class="pill-number">0</strong>
+            <span class="pill-label">Rounds Played</span>
+          </div>
+          <div class="stat-pill">
+            <strong id="summary-completed-challenges" class="pill-number">0</strong>
+            <span class="pill-label">Challenges Done</span>
+          </div>
+          <div class="stat-pill">
+            <strong id="summary-total-sacrifices" class="pill-number">0</strong>
+            <span class="pill-label">Lives Sacrificed</span>
+          </div>
+          <div class="stat-pill">
+            <strong id="summary-total-vetoes" class="pill-number">0</strong>
+            <span class="pill-label">Safety Vetoes</span>
+          </div>
+        </div>
+
+        <!-- Fun Dynamic Awards -->
+        <div class="awards-section">
+          <h2 class="section-title">🎖️ Squad Awards</h2>
+          <div id="summary-awards-grid" class="awards-grid"></div>
+        </div>
+
+        <!-- Player Final Leaderboard -->
+        <div class="leaderboard-section">
+          <h2 class="section-title">Final Player Standings</h2>
+          <div id="summary-players-leaderboard" class="leaderboard-list"></div>
+        </div>
+
+        <!-- Replay Actions -->
+        <div class="summary-actions">
+          <button type="button" id="btn-summary-replay" class="btn btn-primary btn-lg">
+            🔄 Play Again
+          </button>
+          <button type="button" id="btn-summary-home" class="btn btn-glass">
+            🏠 Return to Home
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- =========================================================================
+       MODALS & DIALOGS
+       ========================================================================= -->
+
+  <!-- Modal: Rules & How to Play -->
+  <div id="modal-rules" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="rules-modal-title" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="rules-modal-title" class="modal-title">📖 Rules & How to Play</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-rules" aria-label="Close rules">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="rule-block">
+          <h3>👥 One Shared Device</h3>
+          <p>Truth or Dare is designed for group gatherings using a single phone or tablet passed around the circle. No accounts or logins are needed.</p>
+        </div>
+        <div class="rule-block">
+          <h3>🔒 Secret Submissions & Anonymity</h3>
+          <p>During setup, each player secretly contributes 2 Truths and 2 Dares. Once all players submit, questions are shuffled anonymously into the game deck. Contributor identities are never displayed during gameplay.</p>
+        </div>
+        <div class="rule-block">
+          <h3>❤️ 3 Lives Each</h3>
+          <p>Every player starts with 3 lives. If you decline a challenge, you must sacrifice 1 life and perform a harmless penalty (like a 10-second silly dance!). Reaching 0 lives eliminates you from future turns.</p>
+        </div>
+        <div class="rule-block">
+          <h3>🛡️ Safety Veto</h3>
+          <p>Your comfort is paramount! If any challenge makes you uncomfortable, you can use the <strong>Safety Veto</strong> at any time. It has zero penalty, costs no lives, and the host will draw another challenge.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-rules">Got It, Let's Play!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Settings -->
+  <div id="modal-settings" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="settings-modal-title" class="modal-title">⚙️ Game Preferences</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-settings" aria-label="Close settings">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-row">
+          <label for="setting-sound-mute" class="setting-label">Mute All Sounds</label>
+          <input type="checkbox" id="setting-sound-mute" class="toggle-checkbox">
+        </div>
+        <div class="setting-row">
+          <label for="setting-sound-volume" class="setting-label">Sound Effects Volume</label>
+          <input type="range" id="setting-sound-volume" class="range-slider" min="0" max="100" value="70">
+        </div>
+        <div class="setting-row">
+          <label for="setting-visual-theme" class="setting-label">Visual Theme & Glow</label>
+          <select id="setting-visual-theme" class="form-select">
+            <option value="midnight-neon">Midnight Neon (Purple / Pink)</option>
+            <option value="cyber-violet">Cyberpunk Violet (Indigo / Blue)</option>
+            <option value="electric-sunset">Electric Sunset (Coral / Gold)</option>
+            <option value="cosmic-emerald">Cosmic Emerald (Mint / Teal)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-settings">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Start New Game Confirm -->
+  <div id="modal-new-game-confirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="new-game-title" aria-hidden="true">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 id="new-game-title" class="modal-title">Start New Game?</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-new-game-confirm">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>A saved game is currently in progress. Starting a new game will reset your saved session. Are you sure?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-glass" data-close-modal="modal-new-game-confirm">Cancel</button>
+        <button type="button" id="btn-confirm-start-new" class="btn btn-danger">Yes, Start Fresh</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Player -->
+  <div id="modal-edit-player" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="edit-player-title" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="edit-player-title" class="modal-title">Edit Player</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-edit-player">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="edit-player-name-input" class="form-label">Player Name:</label>
+          <input type="text" id="edit-player-name-input" class="form-input" maxlength="25">
+        </div>
+        <div class="avatar-select-section">
+          <span class="avatar-select-label">Change Avatar:</span>
+          <div id="edit-avatar-grid" class="avatar-grid" role="radiogroup"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-glass" data-close-modal="modal-edit-player">Cancel</button>
+        <button type="button" id="btn-save-edit-player" class="btn btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Manage Sacrifices -->
+  <div id="modal-manage-sacrifices" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sacrifices-title" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="sacrifices-title" class="modal-title">⚙️ Customize Sacrifices</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-manage-sacrifices">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">
+          When players sacrifice a life to skip a challenge, they perform one of these harmless tasks:
+        </p>
+        <div id="manage-sacrifices-list" class="manage-sacrifices-list"></div>
+
+        <div class="add-sacrifice-box">
+          <label for="input-new-sacrifice" class="form-label">Add Custom Sacrifice:</label>
+          <div class="input-with-btn">
+            <input type="text" id="input-new-sacrifice" class="form-input" placeholder="e.g. Do 10 jumping jacks" maxlength="80">
+            <button type="button" id="btn-add-custom-sacrifice" class="btn btn-primary">+ Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-manage-sacrifices">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Inspiration Ideas -->
+  <div id="modal-inspiration" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="inspiration-title" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="inspiration-title" class="modal-title">💡 Suggestions</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-inspiration">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">Need inspiration? Tap any idea to use it or adapt it:</p>
+        <div id="inspiration-list" class="inspiration-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-glass" data-close-modal="modal-inspiration">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Sacrifice Confirmation -->
+  <div id="modal-sacrifice-confirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sac-confirm-heading" aria-hidden="true">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 id="sac-confirm-heading" class="modal-title">Sacrifice Confirmation</h2>
+      </div>
+      <div id="sacrifice-confirm-body" class="modal-body"></div>
+      <div class="modal-footer">
+        <button type="button" id="btn-cancel-sacrifice" class="btn btn-glass">Cancel (Keep Challenge)</button>
+        <button type="button" id="btn-confirm-sacrifice" class="btn btn-danger">Confirm & Sacrifice Life</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Sacrifice Selection -->
+  <div id="modal-sacrifice-select" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sac-select-heading" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="sac-select-heading" class="modal-title">🎭 Choose Your Harmless Penalty</h2>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">You sacrificed a life. Complete one harmless task for the squad:</p>
+        <div id="sacrifice-options-grid" class="sacrifice-options-grid"></div>
+        <div class="random-sacrifice-row">
+          <button type="button" id="btn-random-sacrifice" class="btn btn-secondary btn-block">
+            🎲 Spin Random Penalty
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Interactive 10-Second Silly Dance Timer -->
+  <div id="modal-dance-timer" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="dance-title" aria-hidden="true">
+    <div class="modal-card modal-sm text-center">
+      <div class="modal-header">
+        <h2 id="dance-title" class="modal-title">🕺 10-Second Silly Dance!</h2>
+      </div>
+      <div class="modal-body">
+        <div class="dance-timer-circle">
+          <svg class="timer-svg" viewBox="0 0 160 160">
+            <circle class="timer-bg" cx="80" cy="80" r="70" />
+            <circle id="dance-circle-progress" class="timer-bar" cx="80" cy="80" r="70" />
+          </svg>
+          <div id="dance-countdown" class="timer-number">10</div>
+        </div>
+        <p class="dance-instruction">Get on your feet and give the room your best moves!</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btn-stop-dance" class="btn btn-primary">Done Dancing!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Turn History Drawer -->
+  <div id="modal-history" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="history-title" aria-hidden="true">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="history-title" class="modal-title">📜 Game Turn History</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-history">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">All previous turns. Questions are anonymized.</p>
+        <div id="history-drawer-list" class="history-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close-modal="modal-history">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: End Game Early Confirm -->
+  <div id="modal-end-game-confirm" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="end-confirm-title" aria-hidden="true">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 id="end-confirm-title" class="modal-title">End Game Early?</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-end-game-confirm">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to conclude the current session and jump directly to the final recap & awards?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-glass" data-close-modal="modal-end-game-confirm">Keep Playing</button>
+        <button type="button" id="btn-confirm-end-game" class="btn btn-danger">End & See Awards</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Play Again Options -->
+  <div id="modal-play-again-choice" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="play-again-title" aria-hidden="true">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <h2 id="play-again-title" class="modal-title">🔄 Play Again Options</h2>
+        <button type="button" class="btn-close" data-close-modal="modal-play-again-choice">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>How would you like to continue the party?</p>
+        <div class="play-again-options">
+          <button type="button" id="btn-replay-same-players" class="btn btn-primary btn-block mb-3">
+            👥 Replay with Same Players
+            <span class="btn-subtext">Resets lives to 3 and reshuffles questions</span>
+          </button>
+          <button type="button" id="btn-replay-fresh-game" class="btn btn-secondary btn-block">
+            ✨ Start Fresh Game
+            <span class="btn-subtext">Add new players & write new questions</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript App Entrypoint (Vanilla ES6 Module) -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

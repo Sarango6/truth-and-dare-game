@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <defs>
+    <linearGradient id="grad-avatar-11" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#b224ef" />
+      <stop offset="100%" stop-color="#7579ff" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="48" fill="url(#grad-avatar-11)" />
+  
+      <!-- Horns -->
+      <path d="M30,30 Q22,14 16,16 Q24,24 28,34" fill="#f59e0b"/>
+      <path d="M70,30 Q78,14 84,16 Q76,24 72,34" fill="#f59e0b"/>
+      <!-- Head -->
+      <path d="M26,38 Q50,28 74,38 Q82,72 50,84 Q18,72 26,38 Z" fill="#8b5cf6"/>
+      <!-- Snout -->
+      <path d="M36,54 Q50,50 64,54 Q66,74 50,76 Q34,74 36,54 Z" fill="#a78bfa"/>
+      <!-- Slit eyes -->
+      <ellipse cx="36" cy="46" rx="5" ry="7" fill="#fde047"/>
+      <line x1="36" y1="40" x2="36" y2="52" stroke="#4c1d95" stroke-width="2.5"/>
+      <ellipse cx="64" cy="46" rx="5" ry="7" fill="#fde047"/>
+      <line x1="64" y1="40" x2="64" y2="52" stroke="#4c1d95" stroke-width="2.5"/>
+      <!-- Smoke puff -->
+      <circle cx="44" cy="64" r="2" fill="#5b21b6"/>
+      <circle cx="56" cy="64" r="2" fill="#5b21b6"/>
+      <path d="M50,78 Q52,86 48,90" stroke="#f97316" stroke-width="2" fill="none"/>
+    
+</svg>
