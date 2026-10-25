@@ -21,13 +21,16 @@ export const VISUAL_THEMES = [
 ];
 
 export const DEFAULT_SACRIFICES = [
-  "Tell a funny joke to the group.",
-  "Do a 10-second silly dance!",
-  "Speak in a funny accent for your next turn.",
-  "Make a funny face and hold it for 10 seconds.",
-  "Answer a bonus lighthearted question from the group.",
-  "Perform a tongue-twister 3 times fast without stumbling."
+  "Tell a joke.",
+  "Do a silly dance for 10 seconds.",
+  "Speak in a funny accent for one turn.",
+  "Make a funny face.",
+  "Perform a tongue twister.",
+  "Answer a bonus lighthearted question."
 ];
+export const MIN_SACRIFICES = 1;
+export const MAX_SACRIFICES = 20;
+export const MAX_SACRIFICE_LENGTH = 120;
 
 // Curated ideas for inspiration during question submission
 export const THEME_IDEAS = {
@@ -134,6 +137,7 @@ export class GameState {
     this.customThemeName = '';
     this.visualThemeKey = 'midnight-neon';
     this.sacrifices = [...DEFAULT_SACRIFICES];
+    this.sacrificeCount = this.sacrifices.length;
     
     // Submissions state
     this.submissions = {
@@ -141,9 +145,8 @@ export class GameState {
       completedPlayerIds: []
     };
     
-    // Anonymized Question Deck
-    // NO contributor metadata! Interface-level anonymity.
-    this.questions = []; // [{ id, type: 'truth'|'dare', text, theme, used: false, vetoed: false }]
+    // Contributor IDs are internal-only and are never returned by UI renderers.
+    this.questions = []; // [{ id, contributorId, type, text, theme, used, vetoed }]
     
     // Gameplay state
     this.currentRound = 1;
@@ -322,10 +325,53 @@ export class GameState {
     if (!trimmed) {
       return { success: false, error: 'Sacrifice description cannot be empty.' };
     }
+    if (trimmed.length > MAX_SACRIFICE_LENGTH) {
+      return { success: false, error: `Sacrifice description cannot exceed ${MAX_SACRIFICE_LENGTH} characters.` };
+    }
     if (this.sacrifices.some(s => s.toLowerCase() === trimmed.toLowerCase())) {
       return { success: false, error: 'This sacrifice already exists in the list.' };
     }
+    if (this.sacrifices.length >= MAX_SACRIFICES) {
+      return { success: false, error: `You can have at most ${MAX_SACRIFICES} sacrifice options.` };
+    }
     this.sacrifices.push(trimmed);
+    this.sacrificeCount = this.sacrifices.length;
+    return { success: true, sacrifices: this.sacrifices };
+  }
+
+  setSacrificeCount(count) {
+    const nextCount = Number.parseInt(count, 10);
+    if (!Number.isInteger(nextCount) || nextCount < MIN_SACRIFICES || nextCount > MAX_SACRIFICES) {
+      return { success: false, error: `Sacrifice options must be between ${MIN_SACRIFICES} and ${MAX_SACRIFICES}.` };
+    }
+    if (nextCount > this.sacrifices.length) {
+      const defaults = DEFAULT_SACRIFICES.filter(item => !this.sacrifices.some(existing => existing.toLowerCase() === item.toLowerCase()));
+      this.sacrifices.push(...defaults.slice(0, nextCount - this.sacrifices.length));
+      while (this.sacrifices.length < nextCount) {
+        this.sacrifices.push(`Custom harmless option ${this.sacrifices.length + 1}`);
+      }
+    } else if (nextCount < this.sacrifices.length) {
+      this.sacrifices = this.sacrifices.slice(0, nextCount);
+    }
+    this.sacrificeCount = nextCount;
+    return { success: true, sacrifices: this.sacrifices };
+  }
+
+  updateSacrifice(index, text) {
+    const trimmed = (text || '').trim();
+    if (index < 0 || index >= this.sacrifices.length) {
+      return { success: false, error: 'Invalid sacrifice index.' };
+    }
+    if (!trimmed) {
+      return { success: false, error: 'Sacrifice description cannot be empty.' };
+    }
+    if (trimmed.length > MAX_SACRIFICE_LENGTH) {
+      return { success: false, error: `Sacrifice description cannot exceed ${MAX_SACRIFICE_LENGTH} characters.` };
+    }
+    if (this.sacrifices.some((item, itemIndex) => itemIndex !== index && item.toLowerCase() === trimmed.toLowerCase())) {
+      return { success: false, error: 'This sacrifice already exists in the list.' };
+    }
+    this.sacrifices[index] = trimmed;
     return { success: true, sacrifices: this.sacrifices };
   }
 
@@ -333,10 +379,11 @@ export class GameState {
     if (index < 0 || index >= this.sacrifices.length) {
       return { success: false, error: 'Invalid sacrifice index.' };
     }
-    if (this.sacrifices.length <= 2) {
-      return { success: false, error: 'Must keep at least 2 sacrifices available in the game.' };
+    if (this.sacrifices.length <= MIN_SACRIFICES) {
+      return { success: false, error: `Must keep at least ${MIN_SACRIFICES} sacrifice available in the game.` };
     }
     this.sacrifices.splice(index, 1);
+    this.sacrificeCount = this.sacrifices.length;
     return { success: true, sacrifices: this.sacrifices };
   }
 
@@ -364,7 +411,7 @@ export class GameState {
    * Requires exactly 2 truths and 2 dares.
    * Validates non-empty strings, character boundaries, and duplicate text.
    * 
-   * PRIVACY RULE: Contributor identity is deliberately omitted from question objects!
+   * Contributor IDs are stored only for eligibility checks and are never rendered.
    */
   submitPlayerQuestions(playerId, truth1, truth2, dare1, dare2) {
     const player = this.getCurrentSubmittingPlayer();
@@ -404,10 +451,10 @@ export class GameState {
       return { success: false, error: 'Dare #1 and Dare #2 cannot be identical.' };
     }
 
-    // Create anonymized question items
-    // NOTE: Zero contributor metadata attached to question object for shared-device anonymity.
+    // Contributor IDs stay internal; UI-facing question objects are projected without them.
     const createdQuestions = items.map((item, idx) => ({
       id: `q_${item.type}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}_${idx}`,
+      contributorId: playerId,
       type: item.type,
       text: item.text,
       theme: this.resolvedThemeKey,
@@ -476,9 +523,14 @@ export class GameState {
   getRemainingQuestions(type = null) {
     return this.questions.filter(q => {
       if (q.used) return false;
+      if (q.vetoed) return false;
       if (type && q.type !== type) return false;
       return true;
     });
+  }
+
+  getEligibleQuestions(playerId, type = null) {
+    return this.getRemainingQuestions(type).filter(q => q.contributorId !== playerId);
   }
 
   /**
@@ -537,16 +589,17 @@ export class GameState {
 
     // Determine type: if preferredType is 'truth' or 'dare', check if available; fallback if needed
     let resolvedType = preferredType;
-    if (preferredType === 'truth') {
-      const remainingTruths = this.getRemainingQuestions('truth');
-      if (remainingTruths.length === 0) resolvedType = 'dare';
-    } else if (preferredType === 'dare') {
-      const remainingDares = this.getRemainingQuestions('dare');
-      if (remainingDares.length === 0) resolvedType = 'truth';
+    if (preferredType === 'truth' || preferredType === 'dare') {
+      if (this.getEligibleQuestions(player.id, preferredType).length === 0) {
+        const alternateType = preferredType === 'truth' ? 'dare' : 'truth';
+        if (this.getEligibleQuestions(player.id, alternateType).length > 0) {
+          resolvedType = alternateType;
+        }
+      }
     } else {
       // Randomly pick between remaining available types
-      const truths = this.getRemainingQuestions('truth');
-      const dares = this.getRemainingQuestions('dare');
+      const truths = this.getEligibleQuestions(player.id, 'truth');
+      const dares = this.getEligibleQuestions(player.id, 'dare');
       if (truths.length > 0 && dares.length > 0) {
         resolvedType = Math.random() < 0.5 ? 'truth' : 'dare';
       } else if (truths.length > 0) {
@@ -557,7 +610,10 @@ export class GameState {
     }
 
     // Pick random unused question of resolvedType
-    const availablePool = this.getRemainingQuestions(resolvedType);
+    const availablePool = this.getEligibleQuestions(player.id, resolvedType);
+    if (availablePool.length === 0) {
+      return { success: false, error: `No unused ${resolvedType} challenge is available for this player. Choose another round preference or add eligible questions.` };
+    }
     const chosenQuestion = availablePool[Math.floor(Math.random() * availablePool.length)];
 
     this.activeTurn = {
@@ -650,7 +706,7 @@ export class GameState {
    * Records sacrifice task.
    */
   sacrificeLife(sacrificeTask = null) {
-    if (!this.activeTurn || this.activeTurn.status !== 'revealed') {
+    if (!this.activeTurn || !['revealed', 'sacrifice-pending'].includes(this.activeTurn.status)) {
       return { success: false, error: 'No active challenge to sacrifice.' };
     }
 
@@ -665,16 +721,51 @@ export class GameState {
       return { success: false, error: 'Player has no lives left to sacrifice.' };
     }
 
-    // Deduct exactly 1 life
+    if (sacrificeTask && !this.sacrifices.some(task => task === sacrificeTask.trim())) {
+      return { success: false, error: 'Choose a valid configured sacrifice option.' };
+    }
+
+    if (this.activeTurn.status === 'sacrifice-pending') {
+      return { success: false, error: 'Life already deducted. Choose a sacrifice option to complete this turn.' };
+    }
+
+    // Deduct exactly 1 life after confirmation, before option selection.
     player.lives = Math.max(0, player.lives - 1);
     question.used = true;
-    this.activeTurn.status = 'sacrificed';
-    this.activeTurn.sacrificeDetail = sacrificeTask || 'Completed harmless sacrifice task';
+    this.activeTurn.status = 'sacrifice-pending';
+    this.activeTurn.sacrificeDetail = null;
 
-    // Update stats
+    if (sacrificeTask) {
+      return this.completeSacrifice(sacrificeTask);
+    }
+
+    return {
+      success: true,
+      player,
+      remainingLives: player.lives,
+      isEliminated: player.lives === 0,
+      awaitingSacrificeSelection: true
+    };
+  }
+
+  completeSacrifice(sacrificeTask) {
+    if (!this.activeTurn || this.activeTurn.status !== 'sacrifice-pending') {
+      return { success: false, error: 'No pending sacrifice to complete.' };
+    }
+    const player = this.getActivePlayer();
+    const question = this.getActiveQuestion();
+    const trimmedTask = (sacrificeTask || '').trim();
+    if (!player || !question) {
+      return { success: false, error: 'Player or challenge state corrupted.' };
+    }
+    if (!trimmedTask || !this.sacrifices.some(task => task === trimmedTask)) {
+      return { success: false, error: 'Choose a valid configured sacrifice option.' };
+    }
+
+    this.activeTurn.status = 'sacrificed';
+    this.activeTurn.sacrificeDetail = trimmedTask;
     this.stats.totalSacrifices++;
 
-    // Record history
     this.history.unshift({
       round: this.currentRound,
       playerId: player.id,
@@ -684,7 +775,7 @@ export class GameState {
       type: question.type,
       questionText: question.text,
       outcome: 'sacrificed',
-      sacrificeDetail: this.activeTurn.sacrificeDetail,
+      sacrificeDetail: trimmedTask,
       remainingLives: player.lives,
       timestamp: Date.now()
     });
@@ -696,7 +787,7 @@ export class GameState {
       player,
       remainingLives: player.lives,
       isEliminated,
-      sacrificeTask: this.activeTurn.sacrificeDetail
+      sacrificeTask: trimmedTask
     };
   }
 
@@ -753,18 +844,12 @@ export class GameState {
       return { success: false, error: 'Can only redraw after a safety veto.' };
     }
 
-    const remaining = this.getRemainingQuestions();
+    const remaining = this.getEligibleQuestions(this.activeTurn.playerId, preferredType === 'truth' || preferredType === 'dare' ? preferredType : null);
     if (remaining.length === 0) {
-      return { success: false, error: 'No remaining questions available.' };
+      return { success: false, error: `No unused eligible ${preferredType === 'truth' || preferredType === 'dare' ? preferredType : ''} replacement is available. The round is paused.` };
     }
 
-    let available = remaining;
-    if (preferredType === 'truth' || preferredType === 'dare') {
-      const subset = remaining.filter(q => q.type === preferredType);
-      if (subset.length > 0) available = subset;
-    }
-
-    const chosenQuestion = available[Math.floor(Math.random() * available.length)];
+    const chosenQuestion = remaining[Math.floor(Math.random() * remaining.length)];
     this.activeTurn.questionId = chosenQuestion.id;
     this.activeTurn.chosenType = chosenQuestion.type;
     this.activeTurn.status = 'revealed';
@@ -977,6 +1062,7 @@ export class GameState {
       customThemeName: this.customThemeName,
       visualThemeKey: this.visualThemeKey,
       sacrifices: this.sacrifices,
+      sacrificeCount: this.sacrificeCount,
       submissions: this.submissions,
       questions: this.questions,
       currentRound: this.currentRound,
@@ -992,14 +1078,29 @@ export class GameState {
 
     this.phase = data.phase || 'welcome';
     this.groupName = data.groupName || 'The Party Squad';
-    this.players = Array.isArray(data.players) ? data.players : [];
+    this.players = Array.isArray(data.players) ? data.players.map(player => ({
+      ...player,
+      lives: Number.isInteger(player.lives) ? Math.max(0, Math.min(3, player.lives)) : 3
+    })) : [];
     this.themeKey = data.themeKey || 'random';
     this.resolvedThemeKey = data.resolvedThemeKey || 'funny';
     this.customThemeName = data.customThemeName || '';
     this.visualThemeKey = data.visualThemeKey || 'midnight-neon';
-    this.sacrifices = Array.isArray(data.sacrifices) ? data.sacrifices : [...DEFAULT_SACRIFICES];
+    this.sacrifices = Array.isArray(data.sacrifices) && data.sacrifices.length > 0
+      ? data.sacrifices.filter(item => typeof item === 'string' && item.trim()).slice(0, MAX_SACRIFICES)
+      : [...DEFAULT_SACRIFICES];
+    this.sacrificeCount = this.sacrifices.length;
+    const requestedSacrificeCount = Number.parseInt(data.sacrificeCount, 10);
+    if (Number.isInteger(requestedSacrificeCount)) {
+      this.setSacrificeCount(requestedSacrificeCount);
+    }
     this.submissions = data.submissions || { currentPlayerIndex: 0, completedPlayerIds: [] };
-    this.questions = Array.isArray(data.questions) ? data.questions : [];
+    this.questions = Array.isArray(data.questions) ? data.questions.map(question => ({
+      ...question,
+      contributorId: question.contributorId || null,
+      used: Boolean(question.used),
+      vetoed: Boolean(question.vetoed)
+    })) : [];
     this.currentRound = data.currentRound || 1;
     this.activeTurn = data.activeTurn || null;
     this.lastSelectedPlayerId = data.lastSelectedPlayerId || null;

@@ -4,7 +4,7 @@
  */
 
 import { GameState, VISUAL_THEMES, THEMES } from './game.js';
-import { UIManager, AVATAR_LIST } from './ui.js';
+import { UIManager, AVATAR_LIST, escapeHtml } from './ui.js';
 import { StorageManager } from './storage.js';
 
 class App {
@@ -300,8 +300,30 @@ class App {
     if (manageSacrificesBtn) {
       manageSacrificesBtn.addEventListener('click', () => {
         this.ui.sound.playClick();
-        this.renderSacrificesModalList();
+        this.renderSacrificeSettings();
         this.ui.openModal('modal-manage-sacrifices');
+      });
+    }
+
+    const sacrificeCountInput = document.getElementById('sacrifice-count-input');
+    if (sacrificeCountInput) {
+      sacrificeCountInput.addEventListener('change', () => {
+        const requested = Number.parseInt(sacrificeCountInput.value, 10);
+        if (requested < this.game.sacrifices.length) {
+          const confirmed = window.confirm('Reducing the count will delete the last custom options. Continue?');
+          if (!confirmed) {
+            sacrificeCountInput.value = this.game.sacrifices.length;
+            return;
+          }
+        }
+        const res = this.game.setSacrificeCount(requested);
+        if (!res.success) {
+          this.ui.showToast(res.error, 'error');
+          sacrificeCountInput.value = this.game.sacrifices.length;
+          return;
+        }
+        this.renderSacrificeSettings();
+        this.saveGame();
       });
     }
 
@@ -317,7 +339,7 @@ class App {
         }
         this.ui.sound.playClick();
         sacrificeInput.value = '';
-        this.renderSacrificesModalList();
+        this.renderSacrificeSettings();
         this.saveGame();
       });
     }
@@ -504,10 +526,21 @@ class App {
         if (!activePlayer) return;
 
         this.ui.sound.playClick();
+        if (this.game.activeTurn && this.game.activeTurn.status === 'sacrifice-pending') {
+          this.handleSacrificeSelection(activePlayer);
+          return;
+        }
         this.ui.renderSacrificeConfirmation(
           activePlayer,
           // onConfirm:
           () => {
+            const res = this.game.sacrificeLife();
+            if (!res.success) {
+              this.ui.showToast(res.error, 'error');
+              return;
+            }
+            this.updateRosterAndLives();
+            this.saveGame();
             this.handleSacrificeSelection(activePlayer);
           },
           // onCancel:
@@ -635,6 +668,8 @@ class App {
         if (this.game.activeTurn && this.game.activeTurn.status === 'revealed') {
           const q = this.game.getActiveQuestion();
           if (q) this.ui.revealChallengeCard(q);
+        } else if (this.game.activeTurn && this.game.activeTurn.status === 'sacrifice-pending') {
+          this.handleSacrificeSelection(this.game.getActivePlayer());
         } else if (this.game.activeTurn && ['accepted', 'sacrificed', 'vetoed'].includes(this.game.activeTurn.status)) {
           this.ui.showRoundResolved(this.game.activeTurn.status, this.game.activeTurn.sacrificeDetail);
         } else {
@@ -684,18 +719,34 @@ class App {
     this.ui.openModal('modal-edit-player');
   }
 
-  renderSacrificesModalList() {
+  renderSacrificeSettings() {
     const list = document.getElementById('manage-sacrifices-list');
     if (!list) return;
 
+    const countInput = document.getElementById('sacrifice-count-input');
+    if (countInput) countInput.value = this.game.sacrifices.length;
     list.innerHTML = '';
     this.game.sacrifices.forEach((task, idx) => {
       const item = document.createElement('div');
       item.className = 'manage-sacrifice-item';
       item.innerHTML = `
-        <span class="sacrifice-text">${idx + 1}. ${this.ui.renderHearts(0)} ${escapeHtml(task)}</span>
+        <label class="sacrifice-edit-label" for="sacrifice-edit-${idx}">${idx + 1}</label>
+        <input type="text" id="sacrifice-edit-${idx}" class="form-input sacrifice-edit-input" maxlength="120" value="${escapeHtml(task)}">
+        <button type="button" class="btn btn-glass btn-save-sacrifice">Save</button>
         <button type="button" class="btn-icon btn-delete" aria-label="Delete sacrifice">🗑️</button>
       `;
+
+      item.querySelector('.btn-save-sacrifice').addEventListener('click', () => {
+        const input = item.querySelector('.sacrifice-edit-input');
+        const res = this.game.updateSacrifice(idx, input.value);
+        if (!res.success) {
+          this.ui.showToast(res.error, 'error');
+          return;
+        }
+        this.ui.sound.playClick();
+        this.renderSacrificeSettings();
+        this.saveGame();
+      });
 
       item.querySelector('.btn-delete').addEventListener('click', () => {
         const res = this.game.removeSacrifice(idx);
@@ -704,12 +755,19 @@ class App {
           return;
         }
         this.ui.sound.playClick();
-        this.renderSacrificesModalList();
+        this.renderSacrificeSettings();
         this.saveGame();
       });
 
       list.appendChild(item);
     });
+
+    const preview = document.getElementById('sacrifice-preview-list');
+    if (preview) {
+      preview.innerHTML = this.game.sacrifices
+        .map((task, idx) => `<span class="sacrifice-preview-pill">${idx + 1}. ${escapeHtml(task)}</span>`)
+        .join('');
+    }
   }
 
   renderThemeScreen() {
@@ -812,6 +870,7 @@ class App {
   }
 
   handleSacrificeSelection(player) {
+    if (!player) return;
     this.ui.renderSacrificeSelector(this.game.sacrifices, (chosenSacrifice) => {
       // Check if it's the 10-second silly dance
       if (chosenSacrifice.toLowerCase().includes('dance')) {
@@ -825,7 +884,7 @@ class App {
   }
 
   executeSacrifice(player, chosenSacrifice) {
-    const res = this.game.sacrificeLife(chosenSacrifice);
+    const res = this.game.completeSacrifice(chosenSacrifice);
     if (!res.success) {
       this.ui.showToast(res.error, 'error');
       return;

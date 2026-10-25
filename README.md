@@ -47,7 +47,7 @@ truth-or-dare/
 │   └── sounds/           # Audio assets (click, tick, flip, success, buzzer, fanfare)
 ├── scripts/
 │   ├── generate-assets.js # Asset generation script
-│   └── test-suite.js     # 97-point automated verification test suite
+│   └── test-suite.js     # Automated verification test suite
 └── README.md             # Launch documentation, rules, limitations & test report
 ```
 
@@ -99,10 +99,16 @@ $$\text{welcome} \longrightarrow \text{setup} \longrightarrow \text{theme} \long
 > **Interface-Level Anonymity on Shared Devices**:
 > This game runs entirely on a single physical device passed between players. 
 > 
-> - Once the question submission phase is concluded, question objects contain only `{ id, type, text, theme, used, vetoed }`. 
-> - **Zero contributor metadata** (such as player ID, player name, or avatar) is attached to the question objects or rendered on question cards, outcome notices, or turn history.
+> - Once the question submission phase is concluded, question objects contain `{ id, contributorId, type, text, theme, used, vetoed }`.
+> - `contributorId` is internal-only: it prevents a player receiving their own question and is omitted from question projections and every public-facing render.
 > - This provides complete **interface-level anonymity** for friendly party environments so players cannot know who authored a challenge by looking at the screen.
 > - *Limitation*: Because all questions reside in the browser client memory on the shared device, this is not cryptographic anonymity. An advanced technical user opening developer tools could inspect the memory heap.
+
+### Sacrifice settings
+
+The setup screen supports 1–20 safe, consensual sacrifice options (six defaults). Options can be edited, added, removed, previewed, and persisted with the saved game. Reducing the count confirms before deleting entries. A confirmed ordinary sacrifice deducts exactly one of the player's three lives; selecting the harmless task can be resumed if its dialog is closed.
+
+Saved game schema version 2 migrates version 1 games without resetting valid progress. Legacy questions without contributor IDs remain playable, but only newly submitted questions can enforce contributor exclusion.
 
 ---
 

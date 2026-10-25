@@ -2164,6 +2164,37 @@ body {
   padding: 0.6rem 0.85rem;
 }
 
+.sacrifice-count-row {
+  margin-top: 0.5rem;
+}
+
+.compact-number-input {
+  width: 90px;
+}
+
+.form-help {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  margin: -0.35rem 0 1rem;
+}
+
+.sacrifice-edit-label {
+  color: var(--accent);
+  font-weight: 800;
+  min-width: 1.5rem;
+}
+
+.sacrifice-edit-input {
+  min-width: 0;
+  flex: 1;
+  padding: 0.55rem 0.65rem;
+}
+
+.btn-save-sacrifice {
+  padding: 0.5rem 0.65rem;
+  white-space: nowrap;
+}
+
 .manage-sacrifice-item .sacrifice-text {
   font-size: 0.85rem;
 }
@@ -2172,9 +2203,50 @@ body {
   margin-top: 1rem;
 }
 
+.sacrifice-preview-box {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-glass-border);
+}
+
+.sacrifice-preview-box .section-title {
+  font-size: 1rem;
+  margin-bottom: 0.65rem;
+}
+
+.sacrifice-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sacrifice-preview-pill {
+  display: inline-flex;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--surface-glass-border);
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  padding: 0.35rem 0.6rem;
+}
+
 .input-with-btn {
   display: flex;
   gap: 0.5rem;
+}
+
+@media (max-width: 520px) {
+  .manage-sacrifice-item {
+    flex-wrap: wrap;
+  }
+
+  .sacrifice-edit-input {
+    flex-basis: calc(100% - 2.25rem);
+  }
+
+  .btn-save-sacrifice {
+    margin-left: 2.25rem;
+  }
 }
 
 /* --------------------------------------------------------------------------

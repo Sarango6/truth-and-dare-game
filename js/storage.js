@@ -3,7 +3,7 @@
  * Handles state persistence, versioning, error boundaries, and settings.
  */
 
-const STORAGE_SCHEMA_VERSION = 1;
+const STORAGE_SCHEMA_VERSION = 2;
 const STORAGE_KEYS = {
   GAME_STATE: 'truth_dare_party_game_state_v1',
   SETTINGS: 'truth_dare_party_settings_v1'
@@ -67,9 +67,9 @@ export const StorageManager = {
       const parsed = JSON.parse(raw);
       if (!parsed || typeof parsed !== 'object') return null;
 
-      // Validate schema version
-      if (parsed.schemaVersion !== STORAGE_SCHEMA_VERSION) {
-        console.warn(`Saved schema version (${parsed.schemaVersion}) does not match current (${STORAGE_SCHEMA_VERSION}). Discarding.`);
+      // Migrate known older state shapes instead of discarding valid progress.
+      if (![1, STORAGE_SCHEMA_VERSION].includes(parsed.schemaVersion)) {
+        console.warn(`Unsupported saved schema version (${parsed.schemaVersion}). Discarding.`);
         this.clearGameState();
         return null;
       }
@@ -80,6 +80,18 @@ export const StorageManager = {
         console.warn('Corrupted game state detected. Discarding.');
         this.clearGameState();
         return null;
+      }
+
+      if (parsed.schemaVersion === 1) {
+        state.sacrificeCount = Array.isArray(state.sacrifices) ? state.sacrifices.length : 6;
+        state.questions = Array.isArray(state.questions)
+          ? state.questions.map(question => ({ ...question, contributorId: question.contributorId || null }))
+          : [];
+        window.localStorage.setItem(STORAGE_KEYS.GAME_STATE, JSON.stringify({
+          schemaVersion: STORAGE_SCHEMA_VERSION,
+          timestamp: Date.now(),
+          state
+        }));
       }
 
       return state;

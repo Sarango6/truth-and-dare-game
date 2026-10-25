@@ -87,6 +87,21 @@ assert(res.success && game.sacrifices.length === initialSacrificesCount + 1, 'Cu
 // Prevent duplicate sacrifice
 res = game.addCustomSacrifice('sing a karaoke chorus');
 assert(!res.success, 'Duplicate sacrifice rejected');
+assert(game.sacrifices.length === 7, 'Custom sacrifice list stays synchronized with its count');
+res = game.setSacrificeCount(0);
+assert(!res.success, 'Sacrifice count below minimum is rejected');
+res = game.setSacrificeCount(21);
+assert(!res.success, 'Sacrifice count above maximum is rejected');
+const livesBeforeSacrificeSettings = game.players.map(player => player.lives);
+res = game.setSacrificeCount(1);
+assert(res.success && game.sacrifices.length === 1, 'Sacrifice count can be reduced to one');
+res = game.setSacrificeCount(6);
+assert(res.success && game.sacrifices.length === 6, 'Sacrifice count can be expanded back to six');
+assert(game.players.every((player, index) => player.lives === livesBeforeSacrificeSettings[index]), 'Changing sacrifice count does not change lives');
+res = game.updateSacrifice(0, '   ');
+assert(!res.success, 'Whitespace-only sacrifice descriptions are rejected');
+res = game.updateSacrifice(0, game.sacrifices[1]);
+assert(!res.success, 'Duplicate edited sacrifice descriptions are rejected');
 
 // 3. THEME TESTS
 console.log('\n[3. Theme Tests]');
@@ -144,9 +159,9 @@ const dares = game.questions.filter(q => q.type === 'dare');
 assert(truths.length === 6, 'Total truths count is 6');
 assert(dares.length === 6, 'Total dares count is 6');
 
-// CRITICAL ANONYMITY CHECK
-const leakedContributor = game.questions.some(q => 'contributorId' in q || 'contributorName' in q || 'contributor' in q || 'author' in q);
-assert(!leakedContributor, 'CRITICAL PRIVACY: Question objects contain ZERO contributor identity fields');
+// Contributor IDs are internal eligibility metadata, never UI-facing.
+assert(game.questions.every(q => typeof q.contributorId === 'string'), 'Every question has an internal contributor ID');
+assert(game.questions.every(q => !('contributorName' in q) && !('author' in q)), 'Question objects do not leak contributor names');
 
 // 5. LOBBY VERIFICATION
 console.log('\n[5. Lobby Tests]');
@@ -168,7 +183,8 @@ res = game.startRoundDrawing('random');
 assert(res.success, 'Challenge drawn successfully');
 assert(res.player !== null, 'Eligible player selected');
 assert(res.question !== null, 'Unused question selected');
-assert(!res.question.contributor, 'Revealed question has no contributor metadata');
+assert(!('contributorId' in res.question), 'Revealed question projection omits contributor metadata');
+assert(res.question.id !== game.questions.find(q => q.id === res.question.id && q.contributorId === res.player.id)?.id, 'Player never receives their own question');
 
 const firstPlayerId = res.player.id;
 const firstQuestionId = res.question.id;
@@ -207,14 +223,27 @@ assert(res.success, 'Redrawn challenge for same player successfully');
 // Test Sacrifice a Life
 const playerBeforeSacrifice = game.getActivePlayer();
 const livesBefore = playerBeforeSacrifice.lives;
-res = game.sacrificeLife('Did a 10-second silly dance');
+res = game.sacrificeLife(game.sacrifices[0]);
 assert(res.success, 'Sacrifice recorded');
 assert(playerBeforeSacrifice.lives === livesBefore - 1, 'Exactly 1 life deducted upon confirmed sacrifice');
 assert(res.remainingLives === 2, 'Player has 2 lives remaining');
 
+// Confirmed sacrifice is idempotent and selection can be resumed after cancellation.
+game.nextRound();
+res = game.startRoundDrawing('random');
+assert(res.success, 'Challenge available for staged sacrifice test');
+const stagedLives = game.getActivePlayer().lives;
+res = game.sacrificeLife();
+assert(res.success && res.awaitingSacrificeSelection, 'Confirmed sacrifice deducts one life before selection');
+assert(game.getActivePlayer().lives === stagedLives - 1, 'Staged sacrifice deducts exactly one life');
+res = game.sacrificeLife();
+assert(!res.success && game.getActivePlayer().lives === stagedLives - 1, 'Repeated sacrifice confirmation cannot deduct twice');
+res = game.completeSacrifice(game.sacrifices[0]);
+assert(res.success && game.history[0].sacrificeDetail === game.sacrifices[0], 'Configured sacrifice completion records one history entry');
+
 // Next round
 game.nextRound();
-assert(game.currentRound === 3, 'Advanced to Round 3');
+assert(game.currentRound === 4, 'Advanced to Round 4');
 
 // 7. ELIMINATION & GAME OVER CONDITIONS
 console.log('\n[7. Elimination & Game End Tests]');
@@ -237,7 +266,7 @@ assert(game.phase === 'summary', 'Phase transitioned to summary');
 console.log('\n[8. Summary & Awards Tests]');
 const summary = game.getEndGameSummary();
 assert(summary.totalCompletedChallenges === 1, 'Summary matches recorded challenge count');
-assert(summary.totalSacrifices === 1, 'Summary matches recorded sacrifice count');
+assert(summary.totalSacrifices === 2, 'Summary matches recorded sacrifice count');
 assert(summary.totalVetoes === 1, 'Summary matches recorded veto count');
 assert(Array.isArray(summary.awards) && summary.awards.length > 0, 'Dynamic fun awards generated');
 
@@ -272,6 +301,29 @@ const sampleState = {
 assert(typeof StorageManager.isStorageAvailable === 'function', 'StorageManager has isStorageAvailable method');
 assert(typeof StorageManager.saveGameState === 'function', 'StorageManager has saveGameState method');
 assert(typeof StorageManager.loadGameState === 'function', 'StorageManager has loadGameState method');
+
+const storageValues = {};
+globalThis.window = {
+  localStorage: {
+    setItem: (key, value) => { storageValues[key] = value; },
+    getItem: (key) => storageValues[key] || null,
+    removeItem: (key) => { delete storageValues[key]; }
+  }
+};
+storageValues.truth_dare_party_game_state_v1 = JSON.stringify({
+  schemaVersion: 1,
+  state: {
+    phase: 'playing',
+    players: [{ id: 'legacy', name: 'Legacy', lives: 2 }],
+    sacrifices: ['Legacy safe option'],
+    questions: [{ id: 'legacy-q', type: 'truth', text: 'Legacy question', used: false }]
+  }
+});
+const migrated = StorageManager.loadGameState();
+assert(migrated && migrated.sacrificeCount === 1, 'Version 1 saved game migrates sacrifice settings');
+assert(migrated.questions[0].contributorId === null, 'Legacy questions receive a safe missing-contributor default');
+storageValues.truth_dare_party_game_state_v1 = '{bad json';
+assert(StorageManager.loadGameState() === null, 'Corrupted saved JSON is discarded without throwing');
 
 console.log(`\n========================================`);
 console.log(`TEST SUMMARY: ${passed} PASSED, ${failed} FAILED`);
